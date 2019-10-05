@@ -12,20 +12,20 @@ defmodule ExerciseStateTest do
 
   @tag :focus
   test "Update value with one exercise" do
-    {:ok, pid} = GenServer.start_link(ExerciseState, {%{}, [%{hello_world: %Exercise{name: "Hello world"}}]})
+    {:ok, pid} = GenServer.start_link(ExerciseState, {%{}, [hello_world: %Exercise{name: "Hello world"}]})
     assert GenServer.call(pid, {:update_exercise, :hello_world, {:exercise_dir, "~/hello"}}) == :ok
   end
 
   @tag :focus
   test "Update value with mutiple exercises" do
-    {:ok, pid} = GenServer.start_link(ExerciseState, {%{}, [%{hello_world: %{name: "Hello world"}}, %{introduction: %{name: "Hello world"}}]})
+    {:ok, pid} = GenServer.start_link(ExerciseState, {%{}, [hello_world: %{name: "Hello world"}, introduction: %{name: "Hello world"}]})
     assert GenServer.call(pid, {:update_exercise, :hello_world, {:dir, "~/hello"}}) == :ok  end
 
   @tag :focus
   test "get an excercise" do
-    {:ok, pid} = GenServer.start_link(ExerciseState, {%{}, [%{hello_world: %Exercise{name: "Hello world"}}, %{introduction: %Exercise{name: "Hello world"}}]})
+    {:ok, pid} = GenServer.start_link(ExerciseState, {%{}, [hello_world: %Exercise{name: "Hello world"}, introduction: %Exercise{name: "Hello world"}]})
     {:ok, exercise} = GenServer.call(pid, {:get_exercise, :introduction})
-    assert %{introduction: %Exercise{}} = exercise
+    assert  %Exercise{} = exercise
   end
 
   @tag :focus
@@ -35,35 +35,35 @@ defmodule ExerciseStateTest do
   end
 
   @tag :focus
-  test "update exercise with empty  map" do
-    current = %{hello_world: %{file: ""}}
-    slug = :hello_world
-
-    assert ExerciseState.update_exercise(slug, current, {:file, "hello.exs"}) == %{hello_world: %{:file => "hello.exs"}}
-  end
-
-  @tag :focus
-  test "update exercise without empty map" do
-    current = %{hello_world: %{file: "", name: "Hello world"}}
-
-    slug = :hello_world
-
-    assert ExerciseState.update_exercise(slug, current, {:file, "hello.exs"}) == %{hello_world: %{:file => "hello.exs", :name => "Hello world"}}
-  end
-
-  @tag :focus
   test "add new exercise to empty" do
-    assert :ok = ExerciseState.add_exercise(%Exercise{slug: :joyce_marielle})
+    assert :ok = ExerciseState.add_exercise(:joyce_marielle, %Exercise{name: "Joyce Marielle"})
     {_meta, exercises} = :sys.get_state(ElixirJourney.ExerciseState)
-    assert %{slug: :joyce_marielle} = exercises |> List.first
+    assert %{slug: :joyce_marielle} = exercises |> Keyword.get(:joyce_marielle)
   end
 
-  @tag :current
+  @tag :wip
+  test "update exercise without empty map" do
+    assert :ok = ExerciseState.add_exercise(:hello_world,  %Exercise{name: "Hello world"})
+    assert :ok = ExerciseState.update_exercise(:hello_world, {:file, "hello.exs"})
+    {_meta, exercises} = :sys.get_state(ElixirJourney.ExerciseState)
+    [hello_world: %{file: "hello.exs", name: "Hello world"}] = exercises
+
+  end
+
+  @tag :wip
+  test "add multiple excersies at once" do
+    assert :ok = ExerciseState.add_exercise(hello_world: %Exercise{name: "Hello world"}, introduction: %Exercise{name: "Introduction"})
+    {_meta, exercises} = :sys.get_state(ElixirJourney.ExerciseState)
+    %{slug: :hello_world, name: "Hello world"} = Keyword.get(exercises, :hello_world)
+    %{slug: :introduction, name: "Introduction"} = Keyword.get(exercises, :introduction)
+  end
+
+  @tag :focus
   test "add new exercise" do
-    ExerciseState.add_exercise(%{hello_world: %Exercise{name: "Hello world"}})
-    ExerciseState.add_exercise(%{introduction: %Exercise{name: "Introduction"}})
-    assert :ok = ExerciseState.add_exercise(%{joyce_marielle: %Exercise{slug: :joyce_marielle}})
-    assert :sys.get_state(ElixirJourney.ExerciseState) == {%{}, [%{joyce_marielle: %ElixirJourney.Exercise{exercise_dir: "", exercise_file: "", name: "", slug: :joyce_marielle, solution_file: "", sulution_dir: "", type: ""}}, %{introduction: %ElixirJourney.Exercise{exercise_dir: "", exercise_file: "", name: "Introduction", slug: "", solution_file: "", sulution_dir: "", type: ""}}, %{hello_world: %ElixirJourney.Exercise{exercise_dir: "", exercise_file: "", name: "Hello world", slug: "", solution_file: "", sulution_dir: "", type: ""}}]}
+    ExerciseState.add_exercise(:hello_world, %Exercise{name: "Hello world"})
+    ExerciseState.add_exercise(:introduction, %Exercise{name: "Introduction"})
+    assert :ok = ExerciseState.add_exercise(:joyce_marielle, %Exercise{slug: :joyce_marielle})
+    assert :sys.get_state(ElixirJourney.ExerciseState) == {%{}, [hello_world: %ElixirJourney.Exercise{exercise_dir: "", exercise_file: "", name: "Hello world", slug: :hello_world, solution_file: "", sulution_dir: "", type: ""}, introduction: %ElixirJourney.Exercise{exercise_dir: "", exercise_file: "", name: "Introduction", slug: :introduction, solution_file: "", sulution_dir: "", type: ""}, joyce_marielle: %ElixirJourney.Exercise{exercise_dir: "", exercise_file: "", name: "", slug: :joyce_marielle, solution_file: "", sulution_dir: "", type: ""}]}
 
   end
 end

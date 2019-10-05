@@ -2,6 +2,7 @@ defmodule ElixirJourney do
   use Application
 
   alias ElixirJourney.Exercise
+  alias ElixirJourney.ExerciseState
   require Logger
   import Destructure
 
@@ -26,12 +27,12 @@ defmodule ElixirJourney do
     Supervisor.start_link(children, opts)
   end
 
-  def description(_exercise_slug) do
-    {{:module, name, _list, _}, _list} = Code.eval_file("lib/exercises/hello_world.ex")
-    {:docs_v1, _, _, _, %{} = doc, _metadata, _} = Code.fetch_docs(name)
+  #  def description(_exercise_slug) do
+  def docs(exercise_slug) do
+    # TODO transform into with to check errors
+    {:ok, exercise} = ExerciseState.get_exercise(exercise_slug)
     opts = IEx.Config.ansi_docs()
-    %{"en" => doc} = doc
-    IO.ANSI.Docs.print(doc, opts)
+    IO.ANSI.Docs.print(exercise.doc, opts)
   end
 
   @doc """
@@ -83,19 +84,19 @@ defmodule ElixirJourney do
     end
   end
 
-  def verify(:forward, meta), do: true
-  def verify(:function, meta, params, result) do
-    solution_file = meta.solution_dir <> meta.solution_file
+#  def verify(:forward, meta), do: true
+  def verify(:function, solution_file, params, result) do
+    #solution_file = meta.solution_dir <> meta.solution_file
 
     with :ok <- Exercise.verify_file(solution_file, :solution_file) do
       response = Exercise.execute(:function, solution_file, params)
       case response == result do
         true ->
           Logger.info("Send exercise pass response")
-          true
+          :ok
         false ->
           Logger.info("Exercise fails with response =  #{response}")
-          false
+          {:fail, "Exercise fails with response =  #{response}"}
       end
     else
       error = {:error, reason} ->
@@ -147,13 +148,20 @@ defmodule ElixirJourney do
     modules =  ["baby_steps.ex", "anonymous_functions.ex", "modules.ex",
                 "hello_world.ex", "pattern_matching.ex"]
 
-    modules =  ["anonymous_functions.ex"]
+    modules =  ["anonymous_functions.ex", "hello_world.ex"]
 
 
     # {:ok, files} = File.ls(dir)
     # Enum.filter(files, &(Regex.match?(~r/(#[a-z].ex/i,&1))) |> IO.inspect
     Enum.map(modules, fn(exercise_file) ->
-      with {{:module, name, _, _}, _} <- Code.eval_file("#{dir}/#{exercise_file}") do
+      with {{:module, name, _list, _}, _} <- Code.eval_file("#{dir}/#{exercise_file}"),
+      {:docs_v1, _, _, _, %{} = doc, _metadata, _} <- Code.fetch_docs(name),
+      %{"en" => doc} <- doc do
+
+        #       opts <- IEx.Config.ansi_docs(),
+        # IO.ANSI.Docs.print(doc, opts)
+
+
         underscore_name = Atom.to_string(name)
         |> String.split(".")
         |> List.last()
@@ -164,21 +172,24 @@ defmodule ElixirJourney do
         slug = String.to_atom(underscore_name)
         exercise_name = Macro.underscore(underscore_name) |> String.split("_") |> Enum.reduce("", &(&2 <> " " <> String.capitalize(&1))) |> String.trim
 
-        %{slug: slug,
-          name: exercise_name,
-          module: name
+        {:"#{slug}",
+         %{slug: slug,
+           name: exercise_name,
+           module: name,
+           doc: doc
+         }
         }
       else
         error ->
           IO.inspect(error)
-        %{}
-
+        {:error, "Invalid exercise"}
       end
-    end)
+    end) |> ExerciseState.add_exercise
   end
 
-  def run(exercise_slug, file) do
-
+  def run(exercise_slug, solution_file) do
+    {:ok, exercise} = ExerciseState.get_exercise(exercise_slug)
+    exercise.module.run(solution_file)
   end
 
   @doc """

@@ -1,7 +1,7 @@
 defmodule ElixirJourney.Exercise do
 
   require Logger
-  defstruct name: "", slug: "", exercise_dir: "", exercise_file: "", sulution_dir: "", solution_file: "", type: ""
+  defstruct name: "", slug: "", exercise_dir: "", exercise_file: "", sulution_dir: "", solution_file: "", type: "", module: nil, docs: ""
 
   defmacro __using__(opts) do
 
